@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ULTRA MAX Pack Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  background:#080b1a;
+  color:white;
+  font-family:Arial, sans-serif;
+  text-align:center;
+}
+.box {
+  background:#141a3a;
+  margin:10px auto;
+  padding:15px;
+  width:95%;
+  max-width:420px;
+  border-radius:14px;
+}
+button {
+  padding:8px 14px;
+  margin:4px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  transition:transform .1s;
+}
+button:active { transform:scale(.95); }
+.common{color:#ccc}
+.uncommon{color:#7CFC98}
+.rare{color:#4FC3F7;text-shadow:0 0 5px #4FC3F7}
+.legendary{color:gold;text-shadow:0 0 8px gold}
+.mythic{color:#ff4dff;text-shadow:0 0 10px #ff4dff}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<h1>⚡ ULTRA MAX PACK GAME</h1>
+
+<div class="box">
+💰 Coins: <span id="coins"></span><br>
+⭐ Level: <span id="level"></span> | XP: <span id="xp"></span><br>
+🔥 Prestige: <span id="prestige"></span><br>
+⚡ Boost: x<span id="boost"></span>
+</div>
+
+<div class="box">
+<h3>Modes</h3>
+<button onclick="setMode('classic')">Classic</button>
+<button onclick="setMode('speed')">Speed</button>
+<button onclick="setMode('risk')">Risk</button>
+<p id="modeText"></p>
+</div>
+
+<div class="box">
+<h3>Earn</h3>
+<button onclick="clickCoins()">Click</button>
+<button onclick="quiz()">Quiz</button>
+<button onclick="daily()">Daily</button>
+</div>
+
+<div class="box">
+<h3>Packs</h3>
+<button onclick="openPack('basic')">Basic</button>
+<button onclick="openPack('mega')">Mega</button>
+<button onclick="openPack('ultra')">Ultra 🔓Lv10</button>
+<p id="packResult"></p>
+</div>
+
+<div class="box">
+<h3>Shop</h3>
+<button onclick="buyBoost()">Boost +0.5</button>
+<button onclick="buyXP()">XP Burst</button>
+<button onclick="prestige()">PRESTIGE (Lv25)</button>
+</div>
+
+<div class="box">
+<h3>Collection</h3>
+<ul id="collection"></ul>
+</div>
+
+<div class="box">
+<h3>Leaderboard (Local)</h3>
+<ol id="leaderboard"></ol>
+</div>
+
+<div class="box">
+<h3>Settings</h3>
+<button onclick="toggleSound()">Sound: <span id="soundState"></span></button>
+<button onclick="resetGame()">RESET</button>
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("ULTRAMAX")) || {
+ coins:0,xp:0,level:1,boost:1,
+ prestige:0,mode:"classic",
+ inventory:{},leaderboard:[],
+ lastDaily:0,sound:true
+};
+
+const items=[
+ {n:"🐱 Cat",r:"common",c:35},
+ {n:"🦊 Fox",r:"uncommon",c:20},
+ {n:"🤖 Robot",r:"rare",c:15},
+ {n:"🐉 Dragon",r:"legendary",c:10},
+ {n:"👁️ Void King",r:"mythic",c:5}
+];
+
+const questions=[
+ ["9+8","17"],["Capital of Japan","tokyo"],
+ ["12x4","48"],["100/4","25"]
+];
+
+function save(){localStorage.setItem("ULTRAMAX",JSON.stringify(data));}
+
+function update(){
+ document.getElementById("coins").textContent=data.coins;
+ document.getElementById("xp").textContent=data.xp;
+ document.getElementById("level").textContent=data.level;
+ document.getElementById("boost").textContent=data.boost.toFixed(1);
+ document.getElementById("prestige").textContent=data.prestige;
+ document.getElementById("modeText").textContent="Mode: "+data.mode;
+ document.getElementById("soundState").textContent=data.sound?"ON":"OFF";
+
+ let ul=document.getElementById("collection");
+ ul.innerHTML="";
+ for(let i in data.inventory){
+  let li=document.createElement("li");
+  li.textContent=i+" x"+data.inventory[i];
+  li.className=items.find(x=>x.n===i)?.r;
+  ul.appendChild(li);
+ }
+
+ let lb=document.getElementById("leaderboard");
+ lb.innerHTML="";
+ data.leaderboard.slice(0,5).forEach(s=>{
+  let li=document.createElement("li");
+  li.textContent=s+" coins";
+  lb.appendChild(li);
+ });
+
+ save();
+}
+
+function gainXP(x){
+ data.xp+=x;
+ let need=data.level*100;
+ if(data.xp>=need){
+  data.xp=0;
+  data.level++;
+ }
+}
+
+function setMode(m){data.mode=m;update();}
+
+function clickCoins(){
+ let mult=data.mode==="speed"?0.5:data.mode==="risk"?2:1;
+ data.coins+=Math.floor(5*data.boost*mult*(1+data.prestige*0.1));
+ gainXP(2);
+ update();
+}
+
+function quiz(){
+ let q=questions[Math.floor(Math.random()*questions.length)];
+ let a=prompt(q[0]);
+ if(a&&a.toLowerCase()==q[1]){
+  data.coins+=50;
+  gainXP(20);
+ }
+ update();
+}
+
+function daily(){
+ let now=Date.now();
+ if(now-data.lastDaily>86400000){
+  data.coins+=300;
+  data.lastDaily=now;
+ }
+ update();
+}
+
+function openPack(t){
+ let cost={basic:50,mega:150,ultra:500}[t];
+ if(t==="ultra"&&data.level<10)return;
+ if(data.coins<cost)return;
+ data.coins-=cost;
+ let roll=Math.random()*100,total=0;
+ for(let i of items){
+  total+=i.c+(t==="ultra"?5:0);
+  if(roll<=total){
+   data.inventory[i.n]=(data.inventory[i.n]||0)+1;
+   document.getElementById("packResult").textContent="You got "+i.n;
+   break;
+  }
+ }
+ gainXP(25);
+ update();
+}
+
+function buyBoost(){
+ if(data.coins>=300){
+  data.coins-=300;
+  data.boost+=0.5;
+ }
+ update();
+}
+
+function buyXP(){
+ if(data.coins>=200){
+  data.coins-=200;
+  gainXP(100);
+ }
+ update();
+}
+
+function prestige(){
+ if(data.level>=25){
+  data.prestige++;
+  data.level=1;
+  data.xp=0;
+  data.coins=0;
+  data.boost+=1;
+ }
+ update();
+}
+
+function toggleSound(){data.sound=!data.sound;update();}
+
+function resetGame(){
+ if(confirm("RESET EVERYTHING?")){
+  localStorage.removeItem("ULTRAMAX");
+  location.reload();
+ }
+}
+
+window.onbeforeunload=()=>{
+ data.leaderboard.push(data.coins);
+ data.leaderboard.sort((a,b)=>b-a);
+ save();
+};
+
+update();
+</script>
+</body>
+</html>
